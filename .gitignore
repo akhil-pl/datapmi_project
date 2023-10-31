@@ -1,0 +1,35 @@
+# Byte-compiled / optimized Python files
+__pycache__/
+*.pyc
+
+# Editor and IDE-specific files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.komodoproject
+.komodotool
+
+# Dependency directories
+venv/
+env/
+env2/
+.env
+
+# Compiled Python files
+*.pyc
+
+# Logs
+*.log
+
+# Ignore database files (e.g., SQLite)
+*.sqlite
+
+# Ignore generated documentation
+docs/_build/
+
+# Ignore test coverage reports
+htmlcov/
+
+# Ignore auto-generated API client code
+app/api/client/
