@@ -8,9 +8,11 @@ Base = declarative_base()
 class Connections(Base):
     __tablename__ = 'connections'
     id = Column(Integer, autoincrement=True, primary_key=True)
-    source = Column(String(255))
-    credentials = Column(String(255), nullable=False)
-    created_on = Column(DateTime)
-    status = Column(Boolean)
-    last_connected = Column(DateTime)
-    last_modified = Column(DateTime)
+    source = Column(String(255), nullable=False)
+    host = Column(String(255), nullable=False)
+    user = Column(String(255), nullable=False)
+    password = Column(String(255), nullable=False)
+    port = Column(String(255), nullable=False)
+    database = Column(String(255), nullable=False)
+    
+    
