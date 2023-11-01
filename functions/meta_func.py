@@ -1,4 +1,5 @@
 # Functions for creating required dict from metadata
+from sqlalchemy import UniqueConstraint, Column
 
 
 # Function to create dictionary object from metadata
@@ -63,3 +64,84 @@ def metadata_dict(data):
         Table[table.name] = table_info
     return Table
 
+
+# Function to get tables from metadata
+def table_list(data):
+    Table = []
+    for table in data:
+        Table.append(table.name)
+    return Table
+
+
+
+# Function to get primary keys of a table
+def get_primary_keys(metadata, table_name):
+    if table_name not in metadata.tables:
+        return None  # Table not found in metadata
+
+    table = metadata.tables[table_name]
+    primary_keys = [key.name for key in table.primary_key]
+
+    return primary_keys
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'''def get_unique_columns(metadata, table_name):
+    if table_name not in metadata.tables:
+        return None  # Table not found in metadata
+
+    table = metadata.tables[table_name]
+    
+    unique_columns = []
+    
+    # Check for unique constraints on each column
+    for column in table.c:
+        for constraint in column.constraints:
+            if isinstance(constraint, UniqueConstraint):
+                unique_columns.append(column.name)
+
+    return unique_columns
+
+
+def get_unique_identifiers(metadata, table_name):
+    if table_name not in metadata.tables:
+        return None  # Table not found in metadata
+
+    table = metadata.tables[table_name]
+
+    # Collect unique identifiers (primary key columns and columns with unique constraints)
+    unique_identifiers = [key.name for key in table.primary_key]
+
+    for column in table.columns:
+        if isinstance(column, Column):
+            for constraint in column.constraints:
+                if isinstance(constraint, UniqueConstraint):
+                    unique_identifiers.append(column.name)
+
+    return unique_identifiers
+
+
+'''
