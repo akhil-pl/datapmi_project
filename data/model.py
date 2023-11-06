@@ -11,7 +11,7 @@ class Connections(Base):
     source = Column(String(255), nullable=False)
     host = Column(String(255), nullable=False)
     user = Column(String(255), nullable=False)
-    password = Column(String(255), nullable=False)
+    password = Column(String(255))
     port = Column(String(255), nullable=False)
     database = Column(String(255), nullable=False)
     
