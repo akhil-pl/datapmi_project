@@ -8,7 +8,9 @@ import subprocess
 
 from data.database import get_db
 from data.model import Connections
-from functions.meta_func import metadata_dict, get_primary_keys, table_list
+from functions.metadata_manage_func import metadata_dict, get_primary_keys, table_list
+from functions.dbt_yml_file_func import add_new_profiles_yml, update_target_profiles_yaml
+from functions.dbt_sql_file_func import create_sql_query
 
 import yaml
 
@@ -76,27 +78,8 @@ async def create_new_connection(
     db.refresh(connection)
 
     # Update profile.yml file with connection details
-    with open('/home/user/.dbt/profiles.yml', 'r') as file: # Read the YAML file
-        data = yaml.load(file, Loader=yaml.FullLoader)
+    add_new_profiles_yml(connection=connection)
     
-    test_output = { # Need to give unique keys, or better to provide while execution only
-        "id_"+str(connection.id): {
-            'type': connection.source,
-            'threads': 1,
-            'host': connection.host,
-            'port': int(connection.port),
-            'user': connection.user,
-            'pass': connection.password,
-            'dbname': connection.database,
-            'schema': 'public',
-        }
-    }
-    
-    data['postgres_dbt']['outputs'].update(test_output)
-    
-    with open('/home/user/.dbt/profiles.yml', 'w') as file: # Write the updated data structure back to the YAML file
-        yaml.dump(data, file, default_flow_style=False)
-
     return connection
 
 
@@ -351,48 +334,20 @@ def perform_join(joint_info: JoinDetails, db: Session = Depends(get_db)):
     if not connection:
         raise HTTPException(status_code=404, detail="Connection not found")
     
-    with open('/home/user/.dbt/profiles.yml', 'r') as file: # Read the YAML file
-        data = yaml.load(file, Loader=yaml.FullLoader)
+    # Update target value on profiles.yml file
+    update_target_profiles_yaml(connection.id)
+
+    # Create .sql file with query
+    create_sql_query(join_type=join_type, new_table=new_table, table1=table1, table1_col=table1_col, table2=table2, table2_col=table2_col)
     
-    data['postgres_dbt']['target'] = "id_"+str(connection.id)
-    
-    with open('/home/user/.dbt/profiles.yml', 'w') as file: # Write the updated data structure back to the YAML file
-        yaml.dump(data, file, default_flow_style=False)
-
-    
-    # Create appropriate .sql file
-    # Specify the directory and filename for the .sql file
-    directory = "./dbt/postgres_dbt/models"
-    filename = new_table + ".sql"
-    sql_file_path = f"{directory}/{filename}"
-
-
-    # Build the SQL query dynamically
-    sql_query = f"SELECT\n\t"
-    # Generate SELECT clause for table1
-    select_table1 = [f"{table1}.{col} AS {table1_col[col]}" for col in table1_col]
-    sql_query += ",\n\t".join(select_table1)
-    sql_query += f",\n\t"
-
-    # Generate SELECT clause for table2
-    select_table2 = [f"{table2}.{col} AS {table2_col[col]}" for col in table2_col]
-    sql_query += ",\n\t".join(select_table2)
-
-    # Add the FROM clause with the join type and tables
-    sql_query += f"\nFROM {table1}\n{join_type} JOIN {table2}"
-
-
-    # Open the .sql file for writing
-    with open(sql_file_path, "w") as sql_file:
-        # Write SQL queries to the file, one query per line
-        sql_file.write(sql_query)
-
-    # The .sql file is now created with your SQL queries
-
 
     project_location = "./dbt/postgres_dbt"
 
     # Use subprocess or another method to run dbt commands from the remote location
     result = subprocess.run(["dbt", "run", "--project-dir", project_location], capture_output=True, text=True)
+
+    # Need to delete the .sql file after suscessful running of dbt project
+    # dbt does not return tables, so need to get new table using SQLAlchemy and return
+
     return {"stdout": result.stdout, "stderr": result.stderr}
     

@@ -17,6 +17,14 @@ tags_metadata = [
         "name": "connection",
         "description": "Connection APIs.",
     },
+    {
+        "name": "pipeline",
+        "description": "Pipeline APIs.",
+    },
+    {
+        "name": "dashboard",
+        "description": "Dashboard APIs.",
+    },
 ]
 
 

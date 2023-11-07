@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from data.database import engine
 from data.model import Base
-from apis import alpha
+from apis import alpha, dahbaord_retrival_code, fetch_pipeline_info
 from info.app_metadata import description, tags_metadata, contact
 
 
@@ -27,3 +27,5 @@ def show_root():
 
 # Different API paths
 app.include_router(alpha.router)
+app.include_router(dahbaord_retrival_code.router)
+app.include_router(fetch_pipeline_info.router)
