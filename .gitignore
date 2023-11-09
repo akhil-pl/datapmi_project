@@ -33,3 +33,9 @@ htmlcov/
 
 # Ignore auto-generated API client code
 app/api/client/
+
+
+# Ignore guvicorn config and logs
+guvicorn_conf.py
+access_log/
+error_log/

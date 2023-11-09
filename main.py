@@ -23,7 +23,7 @@ Base.metadata.create_all(bind=engine, checkfirst=True)
 
 @app.get("/")
 def show_root():
-    return {"Hello": "Go to 'url/docs' to view API end points"}
+    return {"Hello": "Please go to '<url>/docs' to view API end points in swagger form"}
 
 # Different API paths
 app.include_router(alpha.router)

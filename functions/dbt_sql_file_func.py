@@ -1,6 +1,6 @@
 # Need to add functions for manipulating .sql files here
 
-
+import os
 
 
 # Function to create and write to .sql file
@@ -26,9 +26,13 @@ def create_sql_file(new_table, sql_query):
 
 
 # Function to create sql query dynamically
-def create_sql_query(join_type, new_table, table1, table1_col, table2, table2_col):
+def create_sql_query(join_make, join_type, new_table, table1, table1_col, table2, table2_col):
     # Build the SQL query dynamically
-    sql_query = f"SELECT\n\t"
+    sql_query = ""
+    if join_make == "table":
+        sql_query = "{{ config(materialized='table') }}"
+        sql_query += f"\n\n"
+    sql_query += f"SELECT\n\t"
     # Generate SELECT clause for table1
     select_table1 = [f"{table1}.{col} AS {table1_col[col]}" for col in table1_col]
     sql_query += ",\n\t".join(select_table1)
@@ -43,5 +47,12 @@ def create_sql_query(join_type, new_table, table1, table1_col, table2, table2_co
 
     create_sql_file(new_table=new_table, sql_query=sql_query)
 
+    return sql_query
 
-    
+
+# Function to delete sql file
+def delete_sql_file(new_table):
+    directory = "./dbt/postgres_dbt/models"
+    filename = new_table + ".sql"
+    sql_file_path = f"{directory}/{filename}"
+    os.remove(sql_file_path)
