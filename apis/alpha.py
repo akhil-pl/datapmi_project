@@ -200,15 +200,19 @@ def get_unique_identifiers(source: str, table: str, db: Session = Depends(get_db
     Get the unique identifiers for a table in a source.
     """
     # Implement logic to retrieve unique identifiers for the specified table.
-    connection = db.query(Connections).filter(Connections.id == source).first()
-    source_db_url = ""
-    dbs = connection.source
-    if connection.password == "None":
-        password = ""
-    else:
-        password = connection.password
-    connection_string = connection.user+':'+password+'@'+connection.host+':'+connection.port+'/'+connection.database
     try:
+        connection = db.query(Connections).filter(Connections.id == source).first()
+        if not connection:
+            return HTTPException(status_code=404, detail="Connection not found")
+        
+        source_db_url = ""
+        dbs = connection.source
+        if connection.password == "None":
+            password = ""
+        else:
+            password = connection.password
+        connection_string = connection.user+':'+password+'@'+connection.host+':'+connection.port+'/'+connection.database
+    
         if dbs not in ["mysql", "postgres"]:
             return {"error": "Unsupported database type"}
         if dbs in ["mysql", "postgres"]:
@@ -246,15 +250,20 @@ def get_source_connection_tables_metadata(connection_id: int, db: Session = Depe
     Fetch metadata for tables in a source connection.
     """
     # Implement logic to retrieve table metadata for the specified connection.
-    connection = db.query(Connections).filter(Connections.id == connection_id).first()
-    source_db_url = ""
-    dbs = connection.source
-    if connection.password == "None":
-        password = ""
-    else:
-        password = connection.password
-    connection_string = connection.user+':'+password+'@'+connection.host+':'+connection.port+'/'+connection.database
     try:
+        connection = db.query(Connections).filter(Connections.id == connection_id).first()
+        if not connection:
+            return HTTPException(status_code=404, detail="Connection not found")
+        
+        source_db_url = ""
+        dbs = connection.source
+        if connection.password == "None":
+            password = ""
+        else:
+            password = connection.password
+        
+        connection_string = connection.user+':'+password+'@'+connection.host+':'+connection.port+'/'+connection.database
+    
         if dbs not in ["mysql", "postgres"]:
             return {"error": "Unsupported database type"}
         if dbs in ["mysql", "postgres"]:
@@ -288,15 +297,20 @@ def list_source_connection_tables(connection_id: int, db: Session = Depends(get_
     Provide a list of tables available in a source connection.
     """
     # Implement logic to list tables in the specified connection.
-    connection = db.query(Connections).filter(Connections.id == connection_id).first()
-    source_db_url = ""
-    dbs = connection.source
-    if connection.password == "None":
-        password = ""
-    else:
-        password = connection.password
-    connection_string = connection.user+':'+password+'@'+connection.host+':'+connection.port+'/'+connection.database
     try:
+        connection = db.query(Connections).filter(Connections.id == connection_id).first()
+        if not connection:
+            return HTTPException(status_code=404, detail="Connection not found")
+        
+        source_db_url = ""
+        dbs = connection.source
+        if connection.password == "None":
+            password = ""
+        else:
+            password = connection.password
+        
+        connection_string = connection.user+':'+password+'@'+connection.host+':'+connection.port+'/'+connection.database
+        
         if dbs not in ["mysql", "postgres"]:
             return {"error": "Unsupported database type"}
         if dbs in ["mysql", "postgres"]:
