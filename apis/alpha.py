@@ -50,6 +50,7 @@ class JoinDetails(BaseModel):
     table1_col: Optional[dict] = None
     table2: Optional[str] = None
     table2_col: Optional[dict] = None
+    match_pair: Optional[dict] = None
 
 
 # Path to add a new connection
@@ -371,6 +372,7 @@ def perform_join(joint_info: JoinDetails, db: Session = Depends(get_db)):
     table1_col = joint_info.table1_col
     table2 = joint_info.table2
     table2_col = joint_info.table2_col
+    match_pair = joint_info.match_pair
 
     connection = db.query(Connections).filter(Connections.id == connection_id).first()
     if not connection:
@@ -380,7 +382,7 @@ def perform_join(joint_info: JoinDetails, db: Session = Depends(get_db)):
     update_target_profiles_yaml(connection.id)
 
     # Create .sql file with query
-    sql_query = create_sql_query(join_make=join_make, join_type=join_type, new_table=new_table, table1=table1, table1_col=table1_col, table2=table2, table2_col=table2_col)
+    sql_query = create_sql_query(join_make=join_make, join_type=join_type, new_table=new_table, table1=table1, table1_col=table1_col, table2=table2, table2_col=table2_col, match_pair=match_pair)
     
     # Use subprocess to run dbt
     project_location = "./dbt/postgres_dbt"
