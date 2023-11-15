@@ -365,8 +365,9 @@ def list_connection_sources(db: Session = Depends(get_db)):
 @router.post("/joins", tags=["connection"])
 def perform_join(joint_info: JoinDetails, db: Session = Depends(get_db)):
     """
-    Perform a join operation between two source table connections.
-    Only CROSS table implemented now. Required columns of final table to be given as {"source name":"destination name"} pair from both table
+    Perform a join operation between two tables in connection. 
+    Required columns of final table to be given as {"source name":"destination name"} pair for both table. 
+    Columns that has to be matched in join should be given as match_pair = {"table1 col":"table2 col"}
     """
     # Implement logic to perform the join operation and return the result.
     connection_id = joint_info.connection_id
