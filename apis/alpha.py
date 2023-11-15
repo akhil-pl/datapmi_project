@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from enum import Enum
-from sqlalchemy import create_engine, MetaData
+from sqlalchemy import create_engine, MetaData, Table, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 from pydantic import BaseModel
 from typing import Optional
@@ -51,6 +51,11 @@ class JoinDetails(BaseModel):
     table2: Optional[str] = None
     table2_col: Optional[dict] = None
     match_pair: Optional[dict] = None
+
+class PaginationParams(BaseModel):
+    page: int = Query(1, description="Page number", ge=1)
+    per_page: int = Query(10, description="Items per page", ge=1)
+
 
 
 # Path to add a new connection
@@ -165,7 +170,7 @@ def perform_connection_to_source(source_info: DatabaseCredentials):
             metadata.reflect(bind=engine)
             return {"source_info": source_info, "metadata": metadata_dict(metadata.tables.values())}
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=404, detail=f"Error: {e}")
     
 
 
@@ -233,7 +238,7 @@ def get_unique_identifiers(source: str, table: str, db: Session = Depends(get_db
             else:
                 return {"error": f"Table {table} not found in database."}
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=404, detail=f"Error: {e}")
     
 
 
@@ -280,7 +285,7 @@ def get_source_connection_tables_metadata(connection_id: int, db: Session = Depe
             metadata.reflect(bind=engine)
             return {"metadata": metadata_dict(metadata.tables.values())}
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=404, detail=f"Error: {e}")
     
 
 
@@ -327,7 +332,7 @@ def list_source_connection_tables(connection_id: int, db: Session = Depends(get_
             metadata.reflect(bind=engine)
             return {"metadata": table_list(metadata.tables.values())}
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=404, detail=f"Error: {e}")
     
 
 
@@ -395,3 +400,68 @@ def perform_join(joint_info: JoinDetails, db: Session = Depends(get_db)):
 
     return {"SQL Query": sql_query, "stdout": result.stdout, "stderr": result.stderr}
     
+
+
+
+
+
+
+
+
+
+# API to get data in a Table in a Source
+@router.get("/sources/{source}/tables/{table}/datas", tags=["connection"])
+def get_data_of_table(source: str, table: str, db: Session = Depends(get_db)):
+    """
+    Get the data in a table in a source.
+    """
+    # Implement logic to retrieve unique identifiers for the specified table.
+    try:
+        connection = db.query(Connections).filter(Connections.id == source).first()
+        if not connection:
+            return HTTPException(status_code=404, detail="Connection not found")
+        
+        source_db_url = ""
+        dbs = connection.source
+        if connection.password == "None":
+            password = ""
+        else:
+            password = connection.password
+        connection_string = connection.user+':'+password+'@'+connection.host+':'+connection.port+'/'+connection.database
+    
+        if dbs not in ["mysql", "postgres"]:
+            return {"error": "Unsupported database type"}
+        if dbs in ["mysql", "postgres"]:
+            if dbs == 'mysql':
+                source_db_url = "mysql+mysqlconnector://"+connection_string
+            else:
+                source_db_url = "postgresql://"+connection_string
+            
+            # Configure and create the engine
+            engine = create_engine(source_db_url)
+
+            with engine.connect() as connection:
+                inspector = inspect(engine)
+                
+                # Fetch columns information
+                columns = inspector.get_columns(table)
+                column_names = [column["name"] for column in columns]
+
+                # Build a dynamic select statement based on columns
+                select_query = f"SELECT {', '.join(column_names)} FROM {table}"
+
+                # Execute the query and fetch all rows
+                result = connection.execute(text(select_query))
+                rows = result.fetchall()
+
+                # Convert rows to dictionaries
+                table_values = [dict(zip(column_names, row)) for row in rows]
+
+                # Check if any rows were returned
+                if not table_values:
+                    raise HTTPException(status_code=404, detail=f"No data found in the table '{table}'")
+            
+            return {"table_values": table_values}
+            
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Error: {e}")
