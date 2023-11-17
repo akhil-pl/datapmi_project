@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from pydantic import BaseModel
 from typing import Optional
 import subprocess
+import math
 
 from data.database import get_db
 from data.model import Connections
@@ -411,8 +412,8 @@ def perform_join(joint_info: JoinDetails, db: Session = Depends(get_db)):
 
 
 # API to get data in a Table in a Source
-@router.get("/sources/{source}/tables/{table}/datas", tags=["connection"])
-def get_data_of_table(source: str, table: str, db: Session = Depends(get_db)):
+@router.post("/sources/{source}/tables/{table}/datas", tags=["connection"])
+def get_data_of_table(source: str, table: str, pagination: PaginationParams, db: Session = Depends(get_db)):
     """
     Get the data in a table in a source.
     """
@@ -448,21 +449,41 @@ def get_data_of_table(source: str, table: str, db: Session = Depends(get_db)):
                 columns = inspector.get_columns(table)
                 column_names = [column["name"] for column in columns]
 
+                # Get the count of rows
+                row_count_query = f"SELECT COUNT(*) FROM {table}"
+                total_records = connection.execute(text(row_count_query)).scalar()
+
+                # Calculate the offset and limit for pagination
+                offset = (pagination.page - 1) * pagination.per_page
+                limit = pagination.per_page
+                total_pages = math.ceil(total_records/pagination.per_page)
+                if offset > total_records:
+                    return HTTPException(status_code=404, detail=f"Page out of range. Only {total_pages} pages")
+
                 # Build a dynamic select statement based on columns
-                select_query = f"SELECT {', '.join(column_names)} FROM {table}"
+                select_query = f"SELECT {', '.join(column_names)} FROM {table} LIMIT {limit} OFFSET {offset}"
 
                 # Execute the query and fetch all rows
                 result = connection.execute(text(select_query))
                 rows = result.fetchall()
 
                 # Convert rows to dictionaries
-                table_values = [dict(zip(column_names, row)) for row in rows]
+                # table_values = [dict(zip(column_names, row)) for row in rows]
+                table_values = [list(row) for row in rows]
 
                 # Check if any rows were returned
                 if not table_values:
-                    raise HTTPException(status_code=404, detail=f"No data found in the table '{table}'")
+                    return HTTPException(status_code=404, detail=f"No data found in the table '{table}'")
             
-            return {"table_values": table_values}
+            return {
+                "column_names" : column_names,
+                "table_values": table_values,
+                "page_details" : f"Page {pagination.page} of {total_pages} pages, with {pagination.per_page} content/page out of {total_records} contents",
+                "page": pagination.page,
+                "total_pages":total_pages,
+                "records_per_page": pagination.per_page,
+                "total_records": total_records,
+                }
             
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Error: {e}")
