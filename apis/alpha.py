@@ -458,7 +458,7 @@ def get_data_of_table(source: str, table: str, pagination: PaginationParams, db:
                 limit = pagination.per_page
                 total_pages = math.ceil(total_records/pagination.per_page)
                 if offset > total_records:
-                    return HTTPException(status_code=404, detail=f"Page out of range. Only {total_pages} pages")
+                    return HTTPException(status_code=404, detail=f"Page {pagination.page} is out of range. Only {total_pages} pages")
 
                 # Build a dynamic select statement based on columns
                 select_query = f"SELECT {', '.join(column_names)} FROM {table} LIMIT {limit} OFFSET {offset}"
