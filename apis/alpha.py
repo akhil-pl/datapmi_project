@@ -202,7 +202,7 @@ def list_supported_sources():
 
 # API to Provide a List of Unique Identifiers for a Table in a Source
 @router.get("/sources/{source}/tables/{table}/unique-identifiers", tags=["connection"])
-def get_unique_identifiers(source: str, table: str, db: Session = Depends(get_db)):
+def get_unique_identifiers(source: int, table: str, db: Session = Depends(get_db)):
     """
     Get the unique identifiers for a table in a source.
     """
