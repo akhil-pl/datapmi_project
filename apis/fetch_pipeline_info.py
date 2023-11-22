@@ -16,6 +16,9 @@ class PipelineBase(BaseModel):
     name: str
     description: str
 
+    class Config: # To response model to work properly
+        orm_mode = True
+
 class PipelineCreate(PipelineBase):
     pass
 
@@ -26,6 +29,9 @@ class PipelineModel(PipelineBase):
 class PipelineStatusBase(BaseModel):
     status: str
 
+    class Config: # To response model to work properly
+        orm_mode = True
+
 class PipelineStatusCreate(PipelineStatusBase):
     pass
 
@@ -35,14 +41,21 @@ class PipelineStatusModel(PipelineStatusBase):
     created_at: datetime
 
 # API endpoints to create, read, and list pipelines and their statuses
-@router.post("/pipelines/", tags=["pipeline"])
+@router.get("/pipelines/", response_model=List[PipelineModel], tags=["pipeline"])
+def list_pipelines(skip: int = 0, limit: int = 10, db : Session = Depends(get_db)):
+    pipelines = db.query(Pipeline).offset(skip).limit(limit).all()
+    db.close()
+    return pipelines
+
+
+
+
+
+
+
+@router.post("/pipelines/", response_model=PipelineModel, tags=["pipeline"])
 def create_pipeline(pipeline: PipelineCreate, db : Session = Depends(get_db)):
-    pipe = {
-        "name": pipeline.name,
-        "description": pipeline.description
-    }
-    db_pipeline = Pipeline(**pipe)
-    # db = SessionLocal()
+    db_pipeline = Pipeline(**pipeline.dict())
     db.add(db_pipeline)
     db.commit()
     db.refresh(db_pipeline)
@@ -54,9 +67,8 @@ def create_pipeline(pipeline: PipelineCreate, db : Session = Depends(get_db)):
 
 
 
-@router.get("/pipelines/{pipeline_id}", tags=["pipeline"])
+@router.get("/pipelines/{pipeline_id}", response_model=PipelineModel, tags=["pipeline"])
 def read_pipeline(pipeline_id: int, db : Session = Depends(get_db)):
-    # db = SessionLocal()
     pipeline = db.query(Pipeline).filter(Pipeline.id == pipeline_id).first()
     db.close()
     if pipeline is None:
@@ -68,32 +80,13 @@ def read_pipeline(pipeline_id: int, db : Session = Depends(get_db)):
 
 
 
-
-@router.get("/pipelines/", tags=["pipeline"])
-def list_pipelines(skip: int = 0, limit: int = 10, db : Session = Depends(get_db)):
-    # db = SessionLocal()
-    pipelines = db.query(Pipeline).offset(skip).limit(limit).all()
-    db.close()
-    return pipelines
-
-
-
-
-
-
-
-
-@router.post("/pipelines/{pipeline_id}/status/", tags=["pipeline"])
+@router.post("/pipelines/{pipeline_id}/status/", response_model=PipelineStatusModel, tags=["pipeline"])
 def create_pipeline_status(pipeline_id: int, status: PipelineStatusCreate, db : Session = Depends(get_db)):
-    pipeStatus = {
-        "status":status.status
-    }
-    # db = SessionLocal()
     pipeline = db.query(Pipeline).filter(Pipeline.id == pipeline_id).first()
     if pipeline is None:
         db.close()
         raise HTTPException(status_code=404, detail="Pipeline not found")
-    db_status = PipelineStatus(pipeline_id=pipeline_id, **pipeStatus)
+    db_status = PipelineStatus(pipeline_id=pipeline_id, **status.dict())
     db.add(db_status)
     db.commit()
     db.refresh(db_status)
@@ -105,7 +98,7 @@ def create_pipeline_status(pipeline_id: int, status: PipelineStatusCreate, db : 
 
 
 
-@router.get("/pipelines/{pipeline_id}/status/", tags=["pipeline"])
+@router.get("/pipelines/{pipeline_id}/status/", response_model=List[PipelineStatusModel], tags=["pipeline"])
 def list_pipeline_statuses(pipeline_id: int, skip: int = 0, limit: int = 20, db : Session = Depends(get_db)):
     # db = SessionLocal()
     pipeline = db.query(Pipeline).filter(Pipeline.id == pipeline_id).first()

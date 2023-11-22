@@ -25,6 +25,14 @@ tags_metadata = [
         "name": "dashboard",
         "description": "Dashboard APIs.",
     },
+    {
+        "name": "jobs",
+        "description": "Jobs APIs.",
+    },
+    {
+        "name": "dummies",
+        "description": "Dummi APIs for testing only. eg: For updating status values of various process to 'Failed' or 'Completed', because automated jobs are not implemented yet.",
+    },
 ]
 
 
