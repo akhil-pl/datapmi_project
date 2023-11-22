@@ -18,16 +18,16 @@ tags_metadata = [
         "description": "Connection APIs.",
     },
     {
+        "name": "jobs",
+        "description": "Jobs APIs.",
+    },
+    {
         "name": "pipeline",
         "description": "Pipeline APIs.",
     },
     {
         "name": "dashboard",
         "description": "Dashboard APIs.",
-    },
-    {
-        "name": "jobs",
-        "description": "Jobs APIs.",
     },
     {
         "name": "dummies",
