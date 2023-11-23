@@ -1,4 +1,5 @@
 # Functions for creating required dict from metadata
+from fastapi import HTTPException
 from sqlalchemy import UniqueConstraint, Column
 
 
@@ -87,61 +88,16 @@ def get_primary_keys(metadata, table_name):
 
 
 
+def get_primary_and_unique_columns(inspector, table_name):
+    try:
+        unique_identifiers = inspector.get_unique_constraints(table_name)
+        primary_keys = inspector.get_pk_constraint(table_name)
+    except:
+        raise Exception("No such table")
+    # Extract only values and represent as comma-separated strings
+    unique_identifiers_result = list([", ".join(ui["column_names"]) for ui in unique_identifiers])
+    primary_keys_result = ", ".join(primary_keys["constrained_columns"])
+
+    return {"primary_keys_columns": primary_keys_result, "unique_columns": unique_identifiers_result}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-'''def get_unique_columns(metadata, table_name):
-    if table_name not in metadata.tables:
-        return None  # Table not found in metadata
-
-    table = metadata.tables[table_name]
-    
-    unique_columns = []
-    
-    # Check for unique constraints on each column
-    for column in table.c:
-        for constraint in column.constraints:
-            if isinstance(constraint, UniqueConstraint):
-                unique_columns.append(column.name)
-
-    return unique_columns
-
-
-def get_unique_identifiers(metadata, table_name):
-    if table_name not in metadata.tables:
-        return None  # Table not found in metadata
-
-    table = metadata.tables[table_name]
-
-    # Collect unique identifiers (primary key columns and columns with unique constraints)
-    unique_identifiers = [key.name for key in table.primary_key]
-
-    for column in table.columns:
-        if isinstance(column, Column):
-            for constraint in column.constraints:
-                if isinstance(constraint, UniqueConstraint):
-                    unique_identifiers.append(column.name)
-
-    return unique_identifiers
-
-
-'''

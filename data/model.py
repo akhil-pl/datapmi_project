@@ -9,9 +9,9 @@ Base = declarative_base()
 class Connections(Base):
     __tablename__ = 'connections'
 
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    # connection_id = Column(Integer, autoincrement=True, primary_key=True)
-    # connection_name = Column(String(255), nullable=False)
+    # id = Column(Integer, autoincrement=True, primary_key=True)
+    connection_id = Column(Integer, autoincrement=True, primary_key=True)
+    connection_name = Column(String(255), nullable=False)
     source = Column(String(255), nullable=False)
     host = Column(String(255), nullable=False)
     user = Column(String(255), nullable=False)

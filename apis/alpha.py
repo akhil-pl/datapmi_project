@@ -9,7 +9,7 @@ import math
 
 from data.database import get_db
 from data.model import Connections
-from functions.metadata_manage_func import metadata_dict, get_primary_keys, table_list
+from functions.metadata_manage_func import metadata_dict, get_primary_keys, table_list, get_primary_and_unique_columns
 from functions.dbt_yml_file_func import add_new_profiles_yml, update_target_profiles_yaml
 from functions.dbt_sql_file_func import create_sql_query, delete_sql_file
 
@@ -63,6 +63,7 @@ class PaginationParams(BaseModel):
 @router.post("/connections/add", tags=["connection"])
 async def create_new_connection(
     source: SupportedDatabases,
+    connection_name: str = Query(..., description="Name to identify the connection"),
     host: str = Query(..., description="Host URL"),
     user: str = Query(..., description="User name"),
     password: str = Query(None, description="User password"),
@@ -72,6 +73,7 @@ async def create_new_connection(
 ):  
     """Path to add a new connection"""
     connection_data = {
+        "connection_name": connection_name,
         "source": source,
         "host": host,
         "user": user,
@@ -131,7 +133,7 @@ def get_connection_details(connection_id: int, db: Session = Depends(get_db)):
     Get connection details by providing a connection ID.
     """
     # Fetch and return connection details based on the connection_id.
-    connection = db.query(Connections).filter(Connections.id == connection_id).first()
+    connection = db.query(Connections).filter(Connections.connection_id == connection_id).first()
     if not connection:
         raise HTTPException(status_code=404, detail="Connection not found")
     return {"connection_id": connection_id, "details": connection}
@@ -201,23 +203,24 @@ def list_supported_sources():
 
 
 # API to Provide a List of Unique Identifiers for a Table in a Source
-@router.get("/sources/{source}/tables/{table}/unique-identifiers", tags=["connection"])
-def get_unique_identifiers(source: int, table: str, db: Session = Depends(get_db)):
+@router.get("/connections/{connection_id}/tables/{table}/unique-identifiers", tags=["connection"])
+def get_unique_identifiers(connection_id: int, table: str, db: Session = Depends(get_db)):
     """
     Get the unique identifiers for a table in a source.
     """
     # Implement logic to retrieve unique identifiers for the specified table.
     try:
-        connection = db.query(Connections).filter(Connections.id == source).first()
+        connection = db.query(Connections).filter(Connections.connection_id == connection_id).first()
         if not connection:
-            return HTTPException(status_code=404, detail="Connection not found")
+            raise HTTPException(status_code=404, detail="Connection not found")
         
         source_db_url = ""
         dbs = connection.source
-        if connection.password == "None":
-            password = ""
-        else:
+        if connection.password:
             password = connection.password
+        else:
+            password = ""
+        
         connection_string = connection.user+':'+password+'@'+connection.host+':'+connection.port+'/'+connection.database
     
         if dbs not in ["mysql", "postgres"]:
@@ -231,13 +234,11 @@ def get_unique_identifiers(source: int, table: str, db: Session = Depends(get_db
             SessionLocal = sessionmaker()
             engine = create_engine(source_db_url)
             SessionLocal.configure(bind=engine)
-            metadata = MetaData()
-            metadata.reflect(bind=engine)
-            unique_identifiers = get_primary_keys(metadata, table)
-            if unique_identifiers:
-                return {"unique-identifiers": unique_identifiers}
-            else:
-                return {"error": f"Table {table} not found in database."}
+            inspector = inspect(engine)
+            
+            unique_identifiers = get_primary_and_unique_columns(inspector, table)
+            return unique_identifiers
+            
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Error: {e}")
     
@@ -258,16 +259,16 @@ def get_source_connection_tables_metadata(connection_id: int, db: Session = Depe
     """
     # Implement logic to retrieve table metadata for the specified connection.
     try:
-        connection = db.query(Connections).filter(Connections.id == connection_id).first()
+        connection = db.query(Connections).filter(Connections.connection_id == connection_id).first()
         if not connection:
             return HTTPException(status_code=404, detail="Connection not found")
         
         source_db_url = ""
         dbs = connection.source
-        if connection.password == "None":
-            password = ""
-        else:
+        if connection.password:
             password = connection.password
+        else:
+            password = ""
         
         connection_string = connection.user+':'+password+'@'+connection.host+':'+connection.port+'/'+connection.database
     
@@ -305,16 +306,16 @@ def list_source_connection_tables(connection_id: int, db: Session = Depends(get_
     """
     # Implement logic to list tables in the specified connection.
     try:
-        connection = db.query(Connections).filter(Connections.id == connection_id).first()
+        connection = db.query(Connections).filter(Connections.connection_id == connection_id).first()
         if not connection:
             return HTTPException(status_code=404, detail="Connection not found")
         
         source_db_url = ""
         dbs = connection.source
-        if connection.password == "None":
-            password = ""
-        else:
+        if connection.password:
             password = connection.password
+        else:
+            password = ""
         
         connection_string = connection.user+':'+password+'@'+connection.host+':'+connection.port+'/'+connection.database
         
@@ -381,12 +382,12 @@ def perform_join(joint_info: JoinDetails, db: Session = Depends(get_db)):
     table2_col = joint_info.table2_col
     match_pair = joint_info.match_pair
 
-    connection = db.query(Connections).filter(Connections.id == connection_id).first()
+    connection = db.query(Connections).filter(Connections.connection_id == connection_id).first()
     if not connection:
         raise HTTPException(status_code=404, detail="Connection not found")
     
     # Update target value on profiles.yml file
-    update_target_profiles_yaml(connection.id)
+    update_target_profiles_yaml(connection.connection_id)
 
     # Create .sql file with query
     sql_query = create_sql_query(join_make=join_make, join_type=join_type, new_table=new_table, table1=table1, table1_col=table1_col, table2=table2, table2_col=table2_col, match_pair=match_pair)
@@ -412,23 +413,23 @@ def perform_join(joint_info: JoinDetails, db: Session = Depends(get_db)):
 
 
 # API to get data in a Table in a Source
-@router.post("/sources/{source}/tables/{table}/datas", tags=["connection"])
-def get_data_of_table(source: str, table: str, pagination: PaginationParams, db: Session = Depends(get_db)):
+@router.post("/connections/{connection_id}/tables/{table}/datas", tags=["connection"])
+def get_data_of_table(connection_id: int, table: str, pagination: PaginationParams, db: Session = Depends(get_db)):
     """
     Get the data in a table in a source.
     """
     # Implement logic to retrieve unique identifiers for the specified table.
     try:
-        connection = db.query(Connections).filter(Connections.id == source).first()
+        connection = db.query(Connections).filter(Connections.connection_id == connection_id).first()
         if not connection:
             return HTTPException(status_code=404, detail="Connection not found")
         
         source_db_url = ""
         dbs = connection.source
-        if connection.password == "None":
-            password = ""
-        else:
+        if connection.password:
             password = connection.password
+        else:
+            password = ""
         connection_string = connection.user+':'+password+'@'+connection.host+':'+connection.port+'/'+connection.database
     
         if dbs not in ["mysql", "postgres"]:

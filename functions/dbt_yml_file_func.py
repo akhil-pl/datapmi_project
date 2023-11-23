@@ -51,7 +51,7 @@ def add_new_profiles_yml(connection):
     data = read_profiels_yml()
 
     test_output = { # Need to give unique keys, or better to provide connection id
-        "id_"+str(connection.id): {
+        "id_"+str(connection.connection_id): {
             'type': connection.source,
             'threads': 1,
             'host': connection.host,
@@ -71,10 +71,10 @@ def add_new_profiles_yml(connection):
 
 
 # Function for updating target value of profiles.yml file
-def update_target_profiles_yaml(id):
+def update_target_profiles_yaml(connection_id):
     data = read_profiels_yml()
 
-    data['postgres_dbt']['target'] = "id_"+str(id)
+    data['postgres_dbt']['target'] = "id_"+str(connection_id)
 
     result = write_profiles_yml(data=data)
     return result
