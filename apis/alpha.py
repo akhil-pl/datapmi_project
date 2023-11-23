@@ -59,6 +59,68 @@ class PaginationParams(BaseModel):
 
 
 
+
+# API to Provide a List of Different Sources
+@router.get("/sources", tags=["connection"])
+def list_supported_sources():
+    """
+    Provide a list of supported data sources.
+    """
+    # Return a list of supported data sources.
+    # Need to be fetched from database once the table is created
+    return {"supported_sources": list(SupportedDatabases)}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# API to Perform a Connection to Pull Metadata
+@router.post("/connections/connect", tags=["connection"])
+def perform_connection_to_source(source_info: DatabaseCredentials):
+    """
+    Perform a connection to a data source and pull metadata.
+    """
+    # Use source_info to connect to the source and pull metadata.
+    source_db_url = ""
+    db = source_info.source
+    connection_string = source_info.user+':'+source_info.password+'@'+source_info.host+':'+source_info.port+'/'+source_info.database
+    try:
+        if db not in SupportedDatabases:
+            return {"error": "Unsupported database type"}
+        if db in ["mysql", "postgres"]:
+            if db == 'mysql':
+                source_db_url = "mysql+mysqlconnector://"+connection_string
+            else:
+                source_db_url = "postgresql://"+connection_string
+            
+            SessionLocal = sessionmaker()
+            engine = create_engine(source_db_url)
+            SessionLocal.configure(bind=engine)
+            metadata = MetaData()
+            metadata.reflect(bind=engine)
+            return {"source_info": source_info, "metadata": metadata_dict(metadata.tables.values())}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Error: {e}")
+    
+
+
+
+
+
+
+
+
+
 # Path to add a new connection
 @router.post("/connections/add", tags=["connection"])
 async def create_new_connection(
@@ -124,6 +186,22 @@ async def create_new_connection(
 
 
 
+# API to Provide List of Connection Sources
+@router.get("/connections/sources/all", tags=["connection"]) # Modified url path as it gives error with a previous path
+def list_connection_sources(db: Session = Depends(get_db)):
+    """
+    Provide a list of available connection sources.
+    """
+    # Return a list of available connection sources.
+    connections = db.query(Connections).all()
+    return {"available connections": connections}
+
+
+
+
+
+
+
 
 
 # API to Get Connection Details
@@ -145,74 +223,17 @@ def get_connection_details(connection_id: int, db: Session = Depends(get_db)):
 
 
 
-
-
-# API to Perform a Connection to Pull Metadata
-@router.post("/connections/connect", tags=["connection"])
-def perform_connection_to_source(source_info: DatabaseCredentials):
+# API to Provide a List of Data Source Tables in a Connection
+@router.get("/connections/{connection_id}/tables", tags=["connection"])
+def list_source_connection_tables(connection_id: int, db: Session = Depends(get_db)):
     """
-    Perform a connection to a data source and pull metadata.
+    Provide a list of tables available in a source connection.
     """
-    # Use source_info to connect to the source and pull metadata.
-    source_db_url = ""
-    db = source_info.source
-    connection_string = source_info.user+':'+source_info.password+'@'+source_info.host+':'+source_info.port+'/'+source_info.database
-    try:
-        if db not in SupportedDatabases:
-            return {"error": "Unsupported database type"}
-        if db in ["mysql", "postgres"]:
-            if db == 'mysql':
-                source_db_url = "mysql+mysqlconnector://"+connection_string
-            else:
-                source_db_url = "postgresql://"+connection_string
-            
-            SessionLocal = sessionmaker()
-            engine = create_engine(source_db_url)
-            SessionLocal.configure(bind=engine)
-            metadata = MetaData()
-            metadata.reflect(bind=engine)
-            return {"source_info": source_info, "metadata": metadata_dict(metadata.tables.values())}
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Error: {e}")
-    
-
-
-
-
-
-
-
-
-
-# API to Provide a List of Different Sources
-@router.get("/sources", tags=["connection"])
-def list_supported_sources():
-    """
-    Provide a list of supported data sources.
-    """
-    # Return a list of supported data sources.
-    # Need to be fetched from database once the table is created
-    return {"supported_sources": list(SupportedDatabases)}
-
-
-
-
-
-
-
-
-
-# API to Provide a List of Unique Identifiers for a Table in a Source
-@router.get("/connections/{connection_id}/tables/{table}/unique-identifiers", tags=["connection"])
-def get_unique_identifiers(connection_id: int, table: str, db: Session = Depends(get_db)):
-    """
-    Get the unique identifiers for a table in a source.
-    """
-    # Implement logic to retrieve unique identifiers for the specified table.
+    # Implement logic to list tables in the specified connection.
     try:
         connection = db.query(Connections).filter(Connections.connection_id == connection_id).first()
         if not connection:
-            raise HTTPException(status_code=404, detail="Connection not found")
+            return HTTPException(status_code=404, detail="Connection not found")
         
         source_db_url = ""
         dbs = connection.source
@@ -222,7 +243,7 @@ def get_unique_identifiers(connection_id: int, table: str, db: Session = Depends
             password = ""
         
         connection_string = connection.user+':'+password+'@'+connection.host+':'+connection.port+'/'+connection.database
-    
+        
         if dbs not in ["mysql", "postgres"]:
             return {"error": "Unsupported database type"}
         if dbs in ["mysql", "postgres"]:
@@ -234,13 +255,19 @@ def get_unique_identifiers(connection_id: int, table: str, db: Session = Depends
             SessionLocal = sessionmaker()
             engine = create_engine(source_db_url)
             SessionLocal.configure(bind=engine)
-            inspector = inspect(engine)
-            
-            unique_identifiers = get_primary_and_unique_columns(inspector, table)
-            return unique_identifiers
-            
+            metadata = MetaData()
+            metadata.reflect(bind=engine)
+            return {"metadata": table_list(metadata.tables.values())}
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Error: {e}")
+
+
+
+
+
+
+
+
     
 
 
@@ -296,19 +323,17 @@ def get_source_connection_tables_metadata(connection_id: int, db: Session = Depe
 
 
 
-
-
-# API to Provide a List of Data Source Tables in a Connection
-@router.get("/connections/{connection_id}/tables", tags=["connection"])
-def list_source_connection_tables(connection_id: int, db: Session = Depends(get_db)):
+# API to Provide a List of Unique Identifiers for a Table in a Source
+@router.get("/connections/{connection_id}/tables/{table}/unique-identifiers", tags=["connection"])
+def get_unique_identifiers(connection_id: int, table: str, db: Session = Depends(get_db)):
     """
-    Provide a list of tables available in a source connection.
+    Get the unique identifiers for a table in a source.
     """
-    # Implement logic to list tables in the specified connection.
+    # Implement logic to retrieve unique identifiers for the specified table.
     try:
         connection = db.query(Connections).filter(Connections.connection_id == connection_id).first()
         if not connection:
-            return HTTPException(status_code=404, detail="Connection not found")
+            raise HTTPException(status_code=404, detail="Connection not found")
         
         source_db_url = ""
         dbs = connection.source
@@ -318,7 +343,7 @@ def list_source_connection_tables(connection_id: int, db: Session = Depends(get_
             password = ""
         
         connection_string = connection.user+':'+password+'@'+connection.host+':'+connection.port+'/'+connection.database
-        
+    
         if dbs not in ["mysql", "postgres"]:
             return {"error": "Unsupported database type"}
         if dbs in ["mysql", "postgres"]:
@@ -330,79 +355,17 @@ def list_source_connection_tables(connection_id: int, db: Session = Depends(get_
             SessionLocal = sessionmaker()
             engine = create_engine(source_db_url)
             SessionLocal.configure(bind=engine)
-            metadata = MetaData()
-            metadata.reflect(bind=engine)
-            return {"metadata": table_list(metadata.tables.values())}
+            inspector = inspect(engine)
+            
+            unique_identifiers = get_primary_and_unique_columns(inspector, table)
+            return unique_identifiers
+            
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Error: {e}")
+
+
     
 
-
-
-
-
-
-
-
-
-# API to Provide List of Connection Sources
-@router.get("/connections/sources/all", tags=["connection"]) # Modified url path as it gives error with a previous path
-def list_connection_sources(db: Session = Depends(get_db)):
-    """
-    Provide a list of available connection sources.
-    """
-    # Return a list of available connection sources.
-    connections = db.query(Connections).all()
-    return {"available connections": connections}
-
-
-
-
-
-
-
-
-
-# API to Trigger a Join from Two Source Table Connections
-@router.post("/joins", tags=["connection"])
-def perform_join(joint_info: JoinDetails, db: Session = Depends(get_db)):
-    """
-    Perform a join operation between two tables in connection. 
-    Required columns of final table to be given as {"source name":"destination name"} pair for both table. 
-    Columns that has to be matched in join should be given as match_pair = {"table1 col":"table2 col"}
-    """
-    # Implement logic to perform the join operation and return the result.
-    connection_id = joint_info.connection_id
-    join_make = joint_info.make
-    join_type = joint_info.type
-    new_table = joint_info.new_table
-    table1 = joint_info.table1
-    table1_col = joint_info.table1_col
-    table2 = joint_info.table2
-    table2_col = joint_info.table2_col
-    match_pair = joint_info.match_pair
-
-    connection = db.query(Connections).filter(Connections.connection_id == connection_id).first()
-    if not connection:
-        raise HTTPException(status_code=404, detail="Connection not found")
-    
-    # Update target value on profiles.yml file
-    update_target_profiles_yaml(connection.connection_id)
-
-    # Create .sql file with query
-    sql_query = create_sql_query(join_make=join_make, join_type=join_type, new_table=new_table, table1=table1, table1_col=table1_col, table2=table2, table2_col=table2_col, match_pair=match_pair)
-    
-    # Use subprocess to run dbt
-    project_location = "./dbt/postgres_dbt"
-    result = subprocess.run(["dbt", "run", "--project-dir", project_location], capture_output=True, text=True)
-
-    # Delete the .sql file after suscessful running of dbt project
-    delete_sql_file(new_table=new_table)
-
-    # dbt does not return tables, so need to get new table using SQLAlchemy and return
-
-    return {"SQL Query": sql_query, "stdout": result.stdout, "stderr": result.stderr}
-    
 
 
 
@@ -488,3 +451,60 @@ def get_data_of_table(connection_id: int, table: str, pagination: PaginationPara
             
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Error: {e}")
+
+
+
+
+
+
+
+
+
+
+
+# API to Trigger a Join from Two Source Table Connections
+@router.post("/joins", tags=["connection"])
+def perform_join(joint_info: JoinDetails, db: Session = Depends(get_db)):
+    """
+    Perform a join operation between two tables in connection. 
+    Required columns of final table to be given as {"source name":"destination name"} pair for both table. 
+    Columns that has to be matched in join should be given as match_pair = {"table1 col":"table2 col"}
+    """
+    # Implement logic to perform the join operation and return the result.
+    connection_id = joint_info.connection_id
+    join_make = joint_info.make
+    join_type = joint_info.type
+    new_table = joint_info.new_table
+    table1 = joint_info.table1
+    table1_col = joint_info.table1_col
+    table2 = joint_info.table2
+    table2_col = joint_info.table2_col
+    match_pair = joint_info.match_pair
+
+    connection = db.query(Connections).filter(Connections.connection_id == connection_id).first()
+    if not connection:
+        raise HTTPException(status_code=404, detail="Connection not found")
+    
+    # Update target value on profiles.yml file
+    update_target_profiles_yaml(connection.connection_id)
+
+    # Create .sql file with query
+    sql_query = create_sql_query(join_make=join_make, join_type=join_type, new_table=new_table, table1=table1, table1_col=table1_col, table2=table2, table2_col=table2_col, match_pair=match_pair)
+    
+    # Use subprocess to run dbt
+    project_location = "./dbt/postgres_dbt"
+    result = subprocess.run(["dbt", "run", "--project-dir", project_location], capture_output=True, text=True)
+
+    # Delete the .sql file after suscessful running of dbt project
+    delete_sql_file(new_table=new_table)
+
+    # dbt does not return tables, so need to get new table using SQLAlchemy and return
+
+    return {"SQL Query": sql_query, "stdout": result.stdout, "stderr": result.stderr}
+    
+
+
+
+
+
+
