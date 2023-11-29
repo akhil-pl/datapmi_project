@@ -8,7 +8,7 @@ from typing import List
 
 
 from data.database import get_db
-from data.model import PipelineMetadata, PipelineExecution
+# from data.model import PipelineMetadata, PipelineExecution
 
 router = APIRouter()
 
