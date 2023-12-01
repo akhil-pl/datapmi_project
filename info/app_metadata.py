@@ -30,6 +30,10 @@ tags_metadata = [
         "description": "Transformation APIs.",
     },
     {
+        "name": "ingestion",
+        "description": "Ingestion APIs.",
+    },
+    {
         "name": "dashboard",
         "description": "Dashboard APIs.",
     },

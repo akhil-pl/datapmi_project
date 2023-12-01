@@ -56,6 +56,49 @@ class JobExecutionStatus(Base):
     # Define the back-reference to JobMetadata
     job_metadata = relationship('JobMetadata', back_populates='job_execution_statuses')
 
+
+
+
+
+
+
+
+
+
+class PipelineMetadata(Base):
+    __tablename__ = 'pipelineMetadata'
+
+    pipeline_id = Column(Integer, primary_key=True, autoincrement=True)
+    job_execution_id = Column(Integer, ForeignKey('jobExecutionStatus.job_execution_id'), nullable=False)
+    pipeline_detail = Column(JSON, nullable=False) # [{"Transformation":"Trans1 logic"}, {"Ingestion":"Ing1 logic"}, {"Transformation":"Trans2 logic"}]
+    total_task_count = Column(Integer, nullable=False)
+    current_running_task_number = Column(Integer, nullable=False) # To keep track and to start next task when a task is completed
+    pipeline_start_datetime = Column(DateTime, server_default=func.now(), nullable=False)
+    pipeline_end_datetime = Column(DateTime)
+    status = Column(Enum('Running', 'Completed', 'Failed'), nullable=False)
+    error_message = Column(Text)
+
+    # Define one-to-many relationship with PipelineExecutionStatus
+    pipeline_execution_statuses = relationship('PipelineExecutionStatus', back_populates='pipeline_metadata')
+
+
+
+# Table to store status of individual task in a pipeline
+class PipelineExecutionStatus(Base):
+    __tablename__ = 'pipelineExecutionStatus'
+
+    pipeline_execution_id = Column(Integer, primary_key=True, autoincrement=True)
+    pipeline_id = Column(Integer, ForeignKey('pipelineMetadata.pipeline_id'), nullable=False)
+    task_number = Column(Integer, nullable=False)
+    task_type = Column(Enum('Transformation', 'Ingestion'), nullable=False)
+    execution_start_datetime = Column(DateTime, nullable=False)
+    execution_end_datetime = Column(DateTime)
+    status = Column(Enum('Running', 'Completed', 'Failed'), nullable=False)
+    error_message = Column(Text)
+
+    # Define the back-reference to PipelineMetadata
+    pipeline_metadata = relationship('PipelineMetadata', back_populates='pipeline_execution_statuses')
+
     
 
 
@@ -70,7 +113,7 @@ class TransformationMetadata(Base):
     __tablename__ = 'transformationMetadata'
 
     transformation_id = Column(Integer, primary_key=True, autoincrement=True)
-    called_by = Column(Enum('Job', 'Pipeline', 'Ingestion'), nullable=False)
+    called_by = Column(Enum('Job', 'Pipeline'), nullable=False)
     transformation_start_datetime = Column(DateTime, server_default=func.now(), nullable=False)
     transformation_end_datetime = Column(DateTime)
     status = Column(Enum('In Progress', 'Completed', 'Failed'), nullable=False)
@@ -84,3 +127,48 @@ class TransformationJobPair(Base):
 
     transformation_id = Column(Integer, ForeignKey('transformationMetadata.transformation_id'), primary_key=True)
     job_execution_id = Column(Integer, ForeignKey('jobExecutionStatus.job_execution_id'), primary_key=True)
+
+
+
+class TransformationPipelinePair(Base):
+    __tablename__ = 'transformationPipelinePair'
+
+    transformation_id = Column(Integer, ForeignKey('transformationMetadata.transformation_id'), primary_key=True)
+    pipeline_execution_id = Column(Integer, ForeignKey('pipelineExecutionStatus.pipeline_execution_id'), primary_key=True)
+
+    
+
+
+
+
+
+
+
+
+
+class IngestionMetadata(Base):
+    __tablename__ = 'ingestionMetadata'
+
+    ingestion_id = Column(Integer, primary_key=True, autoincrement=True)
+    called_by = Column(Enum('Job', 'Pipeline'), nullable=False)
+    ingestion_start_datetime = Column(DateTime, server_default=func.now(), nullable=False)
+    ingestion_end_datetime = Column(DateTime)
+    status = Column(Enum('In Progress', 'Completed', 'Failed'), nullable=False)
+    error_message = Column(Text)
+    ingestion_detail = Column(JSON, nullable=False)
+
+
+
+class IngestionJobPair(Base):
+    __tablename__ = 'ingestionJobPair'
+
+    ingestion_id = Column(Integer, ForeignKey('ingestionMetadata.ingestion_id'), primary_key=True)
+    job_execution_id = Column(Integer, ForeignKey('jobExecutionStatus.job_execution_id'), primary_key=True)
+
+
+
+class IngestionPipelinePair(Base):
+    __tablename__ = 'ingestionPipelinePair'
+
+    ingestion_id = Column(Integer, ForeignKey('ingestionMetadata.ingestion_id'), primary_key=True)
+    pipeline_execution_id = Column(Integer, ForeignKey('pipelineExecutionStatus.pipeline_execution_id'), primary_key=True)

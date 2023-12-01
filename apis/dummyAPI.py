@@ -9,7 +9,7 @@ from typing import List
 
 
 from data.database import get_db
-from data.model import JobMetadata, JobExecutionStatus, TransformationMetadata, TransformationJobPair
+from data.model import JobMetadata, JobExecutionStatus, TransformationMetadata, TransformationJobPair, IngestionMetadata, IngestionJobPair
 
 router = APIRouter()
 
@@ -40,7 +40,7 @@ def start_jobs(job_id: int, db : Session = Depends(get_db)):
 
     job_type = job.job_type
     if job_type == 'Transformation':
-        db_transformation = TransformationMetadata(called_by="Job", status="In Progress", transformation_detail=job.job_detail)
+        db_transformation = TransformationMetadata(called_by="Job", status="In Progress", transformation_detail=job.job_detail["Transformation"])
         db.add(db_transformation)
         db.commit()
         db.refresh(db_transformation)
@@ -49,6 +49,17 @@ def start_jobs(job_id: int, db : Session = Depends(get_db)):
         db.add(db_transJobPair)
         db.commit()
         db.refresh(db_transJobPair)
+
+    elif job_type == 'Ingestion':
+        db_ingestion = IngestionMetadata(called_by="Job", status="In Progress", ingestion_detail=job.job_detail["Ingestion"])
+        db.add(db_ingestion)
+        db.commit()
+        db.refresh(db_ingestion)
+
+        db_ingestJobPair = IngestionJobPair(ingestion_id=db_ingestion.ingestion_id, job_execution_id=db_status.job_execution_id)
+        db.add(db_ingestJobPair)
+        db.commit()
+        db.refresh(db_ingestJobPair)
     
     else:
         db_status = "Job Type not supported"
@@ -101,7 +112,7 @@ def fail_jobs(transformation_id: int, error_message: str, db : Session = Depends
 @router.patch("/transformations/{transformation_id}/completed/", tags=["dummies"])
 def end_jobs(transformation_id: int, db : Session = Depends(get_db)):
     """
-    For manually setting a job execution as complete.
+    For manually setting a transformation execution as complete.
     """
     transformation = db.query(TransformationMetadata).filter(TransformationMetadata.transformation_id == transformation_id).first()
     if transformation is None:
@@ -130,23 +141,82 @@ def end_jobs(transformation_id: int, db : Session = Depends(get_db)):
     return {"message": "Transformation execution status and end datetime updated successfully"}
 
 
-    # job = db.query(JobMetadata).filter(JobMetadata.job_id == job_id).first()
-    # if job is None:
-    #     db.close()
-    #     raise HTTPException(status_code=404, detail="Job not found")
-    # job_status = db.query(JobExecutionStatus).filter(JobExecutionStatus.job_id == job_id, JobExecutionStatus.status == "Running").first()
-    # print("Job model of execution", job_status)
-    # if job_status is None:
-    #     db.close()
-    #     raise HTTPException(status_code=404, detail="Job is not currently running")
-    # job_ex_id = job_status.job_execution_id
-    # db.query(JobExecutionStatus).filter(JobExecutionStatus.job_execution_id == job_ex_id).update({
-    #     "status": "Completed",
-    #     "end_datetime": datetime.utcnow()
-    # })
-    # db.commit()
-    # db.close()
-    # return {"message": "Job execution status and end datetime updated successfully"}
+
+
+
+
+
+
+@router.patch("/ingestions/{ingestions_id}/failed/", tags=["dummies"])
+def fail_jobs(ingestion_id: int, error_message: str, db : Session = Depends(get_db)):
+    """
+    For manually setting a ingestion as failed with error.
+    """
+    ingestion = db.query(IngestionMetadata).filter(IngestionMetadata.ingestion_id == ingestion_id).first()
+    if ingestion is None:
+        db.close()
+        raise HTTPException(status_code=404, detail="Ingestion not found")
+    called_by = ingestion.called_by
+    if ingestion.status != "In Progress":
+        db.close()
+        raise HTTPException(status_code=403, detail="Ingestion is not in progress")
+    db.query(IngestionMetadata).filter(IngestionMetadata.ingestion_id == ingestion_id).update({
+        "status": "Failed",
+        "ingestion_end_datetime": datetime.utcnow(),
+        "error_message":error_message
+    })
+    db.commit()
+    
+    if called_by == 'Job':
+        job_pair = db.query(IngestionJobPair).filter(IngestionJobPair.ingestion_id == ingestion_id).first()
+        db.query(JobExecutionStatus).filter(JobExecutionStatus.job_execution_id == job_pair.job_execution_id).update({
+            "status": "Failed",
+            "end_datetime": datetime.utcnow(),
+            "error_message": "Ingestion fails with message: < " + error_message + " >"
+        })
+        db.commit()
+    
+
+    db.close()
+    return {"message": "Job execution status and end datetime updated successfully"}
+
+
+
+
+
+
+
+@router.patch("/ingestions/{ingestion_id}/completed/", tags=["dummies"])
+def end_jobs(ingestion_id: int, db : Session = Depends(get_db)):
+    """
+    For manually setting a ingestion execution as complete.
+    """
+    ingestion = db.query(IngestionMetadata).filter(IngestionMetadata.ingestion_id == ingestion_id).first()
+    if ingestion is None:
+        db.close()
+        raise HTTPException(status_code=404, detail="Ingestion not found")
+    called_by = ingestion.called_by
+    if ingestion.status != "In Progress":
+        db.close()
+        raise HTTPException(status_code=403, detail="Ingestion is not in progress")
+    db.query(IngestionMetadata).filter(IngestionMetadata.ingestion_id == ingestion_id).update({
+        "status": "Completed",
+        "ingestion_end_datetime": datetime.utcnow()
+    })
+    db.commit()
+    
+    if called_by == 'Job':
+        job_pair = db.query(IngestionJobPair).filter(IngestionJobPair.ingestion_id == ingestion_id).first()
+        db.query(JobExecutionStatus).filter(JobExecutionStatus.job_execution_id == job_pair.job_execution_id).update({
+            "status": "Completed",
+            "end_datetime": datetime.utcnow()
+        })
+        db.commit()
+    
+
+    db.close()
+    return {"message": "Ingestion execution status and end datetime updated successfully"}
+
 
 
 

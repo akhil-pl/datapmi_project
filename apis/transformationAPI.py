@@ -12,7 +12,7 @@ router = APIRouter()
 @router.get("/transformations/{transformation_id}", tags=["transformation"])
 def read_pipeline(transformation_id: int, db: Session = Depends(get_db)):
     """
-    Get jobs, details and its execution status.
+    Get ingestion, details and its execution status.
     """
     transformation = db.query(TransformationMetadata).filter(TransformationMetadata.transformation_id == transformation_id).first()
 
@@ -42,7 +42,7 @@ def read_pipeline(transformation_id: int, db: Session = Depends(get_db)):
 @router.get("/transformations/", tags=["transformation"])
 def read_all_jobs_latest_status(db: Session = Depends(get_db)):
     """
-    Get all jobs with the status of the latest execution.
+    Get all ingestions with the status of execution.
     """
     transformations = db.query(TransformationMetadata).all()
 
