@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from data.database import engine
 from data.model import Base
-from apis import alpha, jobsAPI # dahbaord_retrival_code, fetch_pipeline_info, jobsAPI
+from apis import alpha, jobsAPI, transformationAPI, dummyAPI # dahbaord_retrival_code, fetch_pipeline_info, jobsAPI
 from info.app_metadata import description, tags_metadata, contact
 
 
@@ -30,3 +30,5 @@ app.include_router(alpha.router)
 # app.include_router(dahbaord_retrival_code.router)
 # app.include_router(fetch_pipeline_info.router)
 app.include_router(jobsAPI.router)
+app.include_router(dummyAPI.router)
+app.include_router(transformationAPI.router)

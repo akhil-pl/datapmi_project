@@ -26,6 +26,10 @@ tags_metadata = [
         "description": "Pipeline APIs.",
     },
     {
+        "name": "transformation",
+        "description": "Transformation APIs.",
+    },
+    {
         "name": "dashboard",
         "description": "Dashboard APIs.",
     },
