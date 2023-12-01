@@ -59,27 +59,36 @@ def start_jobs(job_id: int, db : Session = Depends(get_db)):
 
 
 
-@router.patch("/jobs/{job_id}/failed/", tags=["dummies"])
-def fail_jobs(job_id: int, error_message: str, db : Session = Depends(get_db)):
+@router.patch("/transformations/{transformation_id}/failed/", tags=["dummies"])
+def fail_jobs(transformation_id: int, error_message: str, db : Session = Depends(get_db)):
     """
-    For manually setting a job execution as failed with error.
+    For manually setting a transformation as failed with error.
     """
-    job = db.query(JobMetadata).filter(JobMetadata.job_id == job_id).first()
-    if job is None:
+    transformation = db.query(TransformationMetadata).filter(TransformationMetadata.transformation_id == transformation_id).first()
+    if transformation is None:
         db.close()
-        raise HTTPException(status_code=404, detail="Job not found")
-    job_status = db.query(JobExecutionStatus).filter(JobExecutionStatus.job_id == job_id, JobExecutionStatus.status == "Running").first()
-    print("Job model of execution", job_status)
-    if job_status is None:
+        raise HTTPException(status_code=404, detail="Transformation not found")
+    called_by = transformation.called_by
+    if transformation.status != "In Progress":
         db.close()
-        raise HTTPException(status_code=404, detail="Job is not currently running")
-    job_ex_id = job_status.job_execution_id
-    db.query(JobExecutionStatus).filter(JobExecutionStatus.job_execution_id == job_ex_id).update({
+        raise HTTPException(status_code=403, detail="Transformation is not in progress")
+    db.query(TransformationMetadata).filter(TransformationMetadata.transformation_id == transformation_id).update({
         "status": "Failed",
-        "end_datetime": datetime.utcnow(),
+        "transformation_end_datetime": datetime.utcnow(),
         "error_message":error_message
     })
     db.commit()
+    
+    if called_by == 'Job':
+        job_pair = db.query(TransformationJobPair).filter(TransformationJobPair.transformation_id == transformation_id).first()
+        db.query(JobExecutionStatus).filter(JobExecutionStatus.job_execution_id == job_pair.job_execution_id).update({
+            "status": "Failed",
+            "end_datetime": datetime.utcnow(),
+            "error_message": "Transformation fails with message: < " + error_message + " >"
+        })
+        db.commit()
+    
+
     db.close()
     return {"message": "Job execution status and end datetime updated successfully"}
 
@@ -89,28 +98,55 @@ def fail_jobs(job_id: int, error_message: str, db : Session = Depends(get_db)):
 
 
 
-@router.patch("/jobs/{job_id}/completed/", tags=["dummies"])
-def end_jobs(job_id: int, db : Session = Depends(get_db)):
+@router.patch("/transformations/{transformation_id}/completed/", tags=["dummies"])
+def end_jobs(transformation_id: int, db : Session = Depends(get_db)):
     """
     For manually setting a job execution as complete.
     """
-    job = db.query(JobMetadata).filter(JobMetadata.job_id == job_id).first()
-    if job is None:
+    transformation = db.query(TransformationMetadata).filter(TransformationMetadata.transformation_id == transformation_id).first()
+    if transformation is None:
         db.close()
-        raise HTTPException(status_code=404, detail="Job not found")
-    job_status = db.query(JobExecutionStatus).filter(JobExecutionStatus.job_id == job_id, JobExecutionStatus.status == "Running").first()
-    print("Job model of execution", job_status)
-    if job_status is None:
+        raise HTTPException(status_code=404, detail="Transformation not found")
+    called_by = transformation.called_by
+    if transformation.status != "In Progress":
         db.close()
-        raise HTTPException(status_code=404, detail="Job is not currently running")
-    job_ex_id = job_status.job_execution_id
-    db.query(JobExecutionStatus).filter(JobExecutionStatus.job_execution_id == job_ex_id).update({
+        raise HTTPException(status_code=403, detail="Transformation is not in progress")
+    db.query(TransformationMetadata).filter(TransformationMetadata.transformation_id == transformation_id).update({
         "status": "Completed",
-        "end_datetime": datetime.utcnow()
+        "transformation_end_datetime": datetime.utcnow()
     })
     db.commit()
+    
+    if called_by == 'Job':
+        job_pair = db.query(TransformationJobPair).filter(TransformationJobPair.transformation_id == transformation_id).first()
+        db.query(JobExecutionStatus).filter(JobExecutionStatus.job_execution_id == job_pair.job_execution_id).update({
+            "status": "Completed",
+            "end_datetime": datetime.utcnow()
+        })
+        db.commit()
+    
+
     db.close()
-    return {"message": "Job execution status and end datetime updated successfully"}
+    return {"message": "Transformation execution status and end datetime updated successfully"}
+
+
+    # job = db.query(JobMetadata).filter(JobMetadata.job_id == job_id).first()
+    # if job is None:
+    #     db.close()
+    #     raise HTTPException(status_code=404, detail="Job not found")
+    # job_status = db.query(JobExecutionStatus).filter(JobExecutionStatus.job_id == job_id, JobExecutionStatus.status == "Running").first()
+    # print("Job model of execution", job_status)
+    # if job_status is None:
+    #     db.close()
+    #     raise HTTPException(status_code=404, detail="Job is not currently running")
+    # job_ex_id = job_status.job_execution_id
+    # db.query(JobExecutionStatus).filter(JobExecutionStatus.job_execution_id == job_ex_id).update({
+    #     "status": "Completed",
+    #     "end_datetime": datetime.utcnow()
+    # })
+    # db.commit()
+    # db.close()
+    # return {"message": "Job execution status and end datetime updated successfully"}
 
 
 
