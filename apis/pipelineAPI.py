@@ -62,7 +62,7 @@ def read_all_jobs_latest_status(db: Session = Depends(get_db)):
 
 
 
-@router.get("/pipeline/execution/{pipeline_execution_id}", tags=["ingestion"])
+@router.get("/pipeline/execution/{pipeline_execution_id}", tags=["pipeline"])
 def read_pipeline(pipeline_execution_id: int, db: Session = Depends(get_db)):
     """
     Get ingestion, details and its execution status.

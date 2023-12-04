@@ -61,7 +61,12 @@ class FullJobDetailsModel(BaseModel):
 @router.post("/jobs/", response_model=JobMetadateModel, tags=["jobs"])
 def create_job(new_job: JobMetadateBase, db: Session = Depends(get_db)):
     """
-    Create a new job.
+    Create a new job. job_detail to be given as a dictionary with job_type as key (Pipeline / Transformation / Ingession) and logic as value. Find the following example.
+    > For pipeline jobs:-   {"Pipeline" : [{ "Ingestion" : "Pipeline Ingestion 1 logic" }, { "Transformation" : "Pipeline Transformation1 logic" }, { "Ingestion" : "Pipeline Ingestion 2 logic" }, { "Transformation" : "Pipeline Transformation 2 logic" }]}
+    
+    > For ingestion jobs:-   { "Ingestion" : "Ingestion logic" }
+
+    > For transformation jobs:-   { "Transformation" : "Transformation logic" }
     """
     try:
         # Create JobMetadata record
@@ -127,7 +132,7 @@ def read_all_jobs_latest_status(db: Session = Depends(get_db)):
     )
 
     # Convert the SQLAlchemy models to a list of dictionaries for serialization
-    jobs_list = []
+    jobs_list = {'Pipeline': [], 'Transformation': [], 'Ingestion': []}
     for job in job_data:
         job_dict = {
             'job_id': job.job_id,
@@ -144,7 +149,7 @@ def read_all_jobs_latest_status(db: Session = Depends(get_db)):
                 'status': latest_execution_status.status if latest_execution_status.status else None,
             }
 
-        jobs_list.append(job_dict)
+        jobs_list[job.job_type].append(job_dict)
 
     return jobs_list
 

@@ -91,7 +91,7 @@ class PipelineExecutionStatus(Base):
     pipeline_id = Column(Integer, ForeignKey('pipelineMetadata.pipeline_id'), nullable=False)
     task_number = Column(Integer, nullable=False)
     task_type = Column(Enum('Transformation', 'Ingestion'), nullable=False)
-    execution_start_datetime = Column(DateTime, nullable=False)
+    execution_start_datetime = Column(DateTime, server_default=func.now(), nullable=False)
     execution_end_datetime = Column(DateTime)
     status = Column(Enum('Running', 'Completed', 'Failed'), nullable=False)
     error_message = Column(Text)
