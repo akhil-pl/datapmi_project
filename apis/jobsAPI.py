@@ -144,6 +144,7 @@ def read_all_jobs_latest_status(db: Session = Depends(get_db)):
         if job.job_execution_statuses:
             latest_execution_status = job.job_execution_statuses[0]  # Assuming the list is ordered by execution_id
             job_dict['last_execution_status'] = {
+                'job_execution_id': latest_execution_status.job_execution_id,
                 'start_datetime': latest_execution_status.start_datetime if latest_execution_status.start_datetime else None,
                 'end_datetime': latest_execution_status.end_datetime if latest_execution_status.end_datetime else None,
                 'status': latest_execution_status.status if latest_execution_status.status else None,

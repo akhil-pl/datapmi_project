@@ -17,6 +17,36 @@ router = APIRouter()
 
 
 
+@router.get("/jobs/pipelines/{job_execution_id}", tags=["pipeline"])
+def read_pipeline(job_execution_id: int, db: Session = Depends(get_db)):
+    """
+    Get jobs, details and its execution status.
+    """
+    pipeline_data = (
+        db.query(PipelineMetadata)
+        .options(joinedload(PipelineMetadata.pipeline_execution_statuses))
+        .filter(PipelineMetadata.job_execution_id == job_execution_id)
+        .first()
+    )
+
+    if not pipeline_data:
+        raise HTTPException(status_code=404, detail="No pipeline with that execution id")
+
+    # Convert the SQLAlchemy model to a dictionary for serialization
+    pipeline_dict = pipeline_data.__dict__
+    # Remove the "_sa_instance_state" key, which is not JSON serializable
+    pipeline_dict.pop("_sa_instance_state", None)
+
+    return pipeline_dict
+
+
+
+
+
+
+
+
+
 @router.get("/pipelines/{pipeline_id}", tags=["pipeline"])
 def read_pipeline(pipeline_id: int, db: Session = Depends(get_db)):
     """
