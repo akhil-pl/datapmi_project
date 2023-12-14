@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, func
 from sqlalchemy.sql.expression import and_
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List
 
 
@@ -35,7 +35,7 @@ def update_pipeline_execution_status(pipeline_execution_id: int,
     if status == 'Failed':
         db.query(PipelineExecutionStatus).filter(PipelineExecutionStatus.pipeline_execution_id == pipeline_execution_id).update({
             "status": status,
-            "execution_end_datetime": datetime.utcnow(),
+            "execution_end_datetime": datetime.utcnow() + timedelta(hours=5, minutes=30),
             "error_message": "Task fails with message: < " + error_message + " >"
         })
         db.commit()
@@ -43,7 +43,7 @@ def update_pipeline_execution_status(pipeline_execution_id: int,
         pipeline_execution = db.query(PipelineExecutionStatus).filter(PipelineExecutionStatus.pipeline_execution_id == pipeline_execution_id).first()
         db.query(PipelineMetadata).filter(PipelineMetadata.pipeline_id == pipeline_execution.pipeline_id).update({
             "status": status,
-            "pipeline_end_datetime": datetime.utcnow(),
+            "pipeline_end_datetime": datetime.utcnow() + timedelta(hours=5, minutes=30),
             "error_message": "Task number " + str(pipeline_execution.task_number) + " fails with message: < " + error_message + " >"
         })
         db.commit()
@@ -51,7 +51,7 @@ def update_pipeline_execution_status(pipeline_execution_id: int,
         pipeline = db.query(PipelineMetadata).filter(PipelineMetadata.pipeline_id == pipeline_execution.pipeline_id).first()
         db.query(JobExecutionStatus).filter(JobExecutionStatus.job_execution_id == pipeline.job_execution_id).update({
             "status": status,
-            "end_datetime": datetime.utcnow(),
+            "end_datetime": datetime.utcnow() + timedelta(hours=5, minutes=30),
             "error_message": "Pipeline " + pipeline.error_message
         })
         db.commit()
@@ -59,7 +59,7 @@ def update_pipeline_execution_status(pipeline_execution_id: int,
     elif status == 'Completed':
         db.query(PipelineExecutionStatus).filter(PipelineExecutionStatus.pipeline_execution_id == pipeline_execution_id).update({
             "status": status,
-            "execution_end_datetime": datetime.utcnow()
+            "execution_end_datetime": datetime.utcnow() + timedelta(hours=5, minutes=30)
         })
         db.commit()
 
@@ -106,13 +106,13 @@ def update_pipeline_execution_status(pipeline_execution_id: int,
         else:
             db.query(PipelineMetadata).filter(PipelineMetadata.pipeline_id == pipeline_execution.pipeline_id).update({
                 "status": 'Completed',
-                "pipeline_end_datetime": datetime.utcnow()
+                "pipeline_end_datetime": datetime.utcnow() + timedelta(hours=5, minutes=30)
             })
             db.commit()
 
             db.query(JobExecutionStatus).filter(JobExecutionStatus.job_execution_id == pipeline.job_execution_id).update({
                 "status": "Completed",
-                "end_datetime": datetime.utcnow()
+                "end_datetime": datetime.utcnow() + timedelta(hours=5, minutes=30)
             })
             db.commit()
 
@@ -234,7 +234,7 @@ def fail_jobs(transformation_id: int, error_message: str, db : Session = Depends
         raise HTTPException(status_code=403, detail="Transformation is not in progress")
     db.query(TransformationMetadata).filter(TransformationMetadata.transformation_id == transformation_id).update({
         "status": "Failed",
-        "transformation_end_datetime": datetime.utcnow(),
+        "transformation_end_datetime": datetime.utcnow() + timedelta(hours=5, minutes=30),
         "error_message":error_message
     })
     db.commit()
@@ -243,7 +243,7 @@ def fail_jobs(transformation_id: int, error_message: str, db : Session = Depends
         job_pair = db.query(TransformationJobPair).filter(TransformationJobPair.transformation_id == transformation_id).first()
         db.query(JobExecutionStatus).filter(JobExecutionStatus.job_execution_id == job_pair.job_execution_id).update({
             "status": "Failed",
-            "end_datetime": datetime.utcnow(),
+            "end_datetime": datetime.utcnow() + timedelta(hours=5, minutes=30),
             "error_message": "Transformation fails with message: < " + error_message + " >"
         })
         db.commit()
@@ -276,7 +276,7 @@ def end_jobs(transformation_id: int, db : Session = Depends(get_db)):
         raise HTTPException(status_code=403, detail="Transformation is not in progress")
     db.query(TransformationMetadata).filter(TransformationMetadata.transformation_id == transformation_id).update({
         "status": "Completed",
-        "transformation_end_datetime": datetime.utcnow()
+        "transformation_end_datetime": datetime.utcnow() + timedelta(hours=5, minutes=30)
     })
     db.commit()
     
@@ -284,7 +284,7 @@ def end_jobs(transformation_id: int, db : Session = Depends(get_db)):
         job_pair = db.query(TransformationJobPair).filter(TransformationJobPair.transformation_id == transformation_id).first()
         db.query(JobExecutionStatus).filter(JobExecutionStatus.job_execution_id == job_pair.job_execution_id).update({
             "status": "Completed",
-            "end_datetime": datetime.utcnow()
+            "end_datetime": datetime.utcnow() + timedelta(hours=5, minutes=30)
         })
         db.commit()
     
@@ -319,7 +319,7 @@ def fail_jobs(ingestion_id: int, error_message: str, db : Session = Depends(get_
         raise HTTPException(status_code=403, detail="Ingestion is not in progress")
     db.query(IngestionMetadata).filter(IngestionMetadata.ingestion_id == ingestion_id).update({
         "status": "Failed",
-        "ingestion_end_datetime": datetime.utcnow(),
+        "ingestion_end_datetime": datetime.utcnow() + timedelta(hours=5, minutes=30),
         "error_message":error_message
     })
     db.commit()
@@ -328,7 +328,7 @@ def fail_jobs(ingestion_id: int, error_message: str, db : Session = Depends(get_
         job_pair = db.query(IngestionJobPair).filter(IngestionJobPair.ingestion_id == ingestion_id).first()
         db.query(JobExecutionStatus).filter(JobExecutionStatus.job_execution_id == job_pair.job_execution_id).update({
             "status": "Failed",
-            "end_datetime": datetime.utcnow(),
+            "end_datetime": datetime.utcnow() + timedelta(hours=5, minutes=30),
             "error_message": "Ingestion fails with message: < " + error_message + " >"
         })
         db.commit()
@@ -361,7 +361,7 @@ def end_jobs(ingestion_id: int, db : Session = Depends(get_db)):
         raise HTTPException(status_code=403, detail="Ingestion is not in progress")
     db.query(IngestionMetadata).filter(IngestionMetadata.ingestion_id == ingestion_id).update({
         "status": "Completed",
-        "ingestion_end_datetime": datetime.utcnow()
+        "ingestion_end_datetime": datetime.utcnow() + timedelta(hours=5, minutes=30)
     })
     db.commit()
     
@@ -369,7 +369,7 @@ def end_jobs(ingestion_id: int, db : Session = Depends(get_db)):
         job_pair = db.query(IngestionJobPair).filter(IngestionJobPair.ingestion_id == ingestion_id).first()
         db.query(JobExecutionStatus).filter(JobExecutionStatus.job_execution_id == job_pair.job_execution_id).update({
             "status": "Completed",
-            "end_datetime": datetime.utcnow()
+            "end_datetime": datetime.utcnow() + timedelta(hours=5, minutes=30)
         })
         db.commit()
     elif called_by == 'Pipeline':
