@@ -1,8 +1,10 @@
 from fastapi import FastAPI
+from fastapi.routing import APIRoute
 from data.database import engine
 from data.model import Base
 from apis import alpha, jobsAPI, pipelineAPI, transformationAPI, ingestionAPI, dummyAPI
 from info.app_metadata import description, tags_metadata, contact
+from typing import List
 
 
 
@@ -25,10 +27,19 @@ Base.metadata.create_all(bind=engine, checkfirst=True)
 def show_root():
     return {"Hello": "Please go to '<url>/docs' to view API end points in swagger form"}
 
+# Dynamically get all endpoints
+def get_all_endpoints():
+    routes: List[APIRoute] = app.routes
+    endpoints = [route.path for route in routes if isinstance(route, APIRoute)]
+    return endpoints
+
+@app.get("/list-endpoints", response_model=List[str])
+async def list_endpoints():
+    return get_all_endpoints()
+
+
 # Different API paths
 app.include_router(alpha.router)
-# app.include_router(dahbaord_retrival_code.router)
-# app.include_router(fetch_pipeline_info.router)
 app.include_router(jobsAPI.router)
 app.include_router(pipelineAPI.router)
 app.include_router(transformationAPI.router)

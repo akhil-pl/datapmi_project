@@ -148,7 +148,15 @@ def start_jobs(job_id: int, db : Session = Depends(get_db)):
     db.refresh(db_status)
 
     job_type = job.job_type
+    job_data = db.query(JobMetadata).options(joinedload(JobMetadata.job_execution_statuses)).all()
+    job_list = {'Pipeline':[], 'Transformation':[], 'Ingestion':[]}
+    for job in job_data:
+        job_dict = {
+            'job_id':job.job_id
+        }
     if job_type == 'Transformation':
+        # Add code to verify whether all the Transformation jobs before this was ran atleast one
+        
         db_transformation = TransformationMetadata(called_by="Job", status="In Progress", transformation_detail=job.job_detail["Transformation"])
         db.add(db_transformation)
         db.commit()
